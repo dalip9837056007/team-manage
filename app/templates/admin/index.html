@@ -55,6 +55,7 @@
                 <tr>
                     <th>ID</th>
                     <th>邮箱</th>
+                    <th>Account ID</th>
                     <th>Team 名称</th>
                     <th>成员数</th>
                     <th>订阅计划</th>
@@ -68,6 +69,7 @@
                 <tr>
                     <td><span class="text-muted">{{ team.id }}</span></td>
                     <td>{{ team.email }}</td>
+                    <td><span class="text-muted small">{{ team.account_id or '-' }}</span></td>
                     <td>{{ team.team_name or '-' }}</td>
                     <td>
                         <span class="member-count">
