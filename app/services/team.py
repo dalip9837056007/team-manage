@@ -605,11 +605,11 @@ class TeamService:
             # 处理已加入成员
             for m in members_result["members"]:
                 all_members.append({
-                    "user_id": m.get("user_id"),
+                    "user_id": m.get("id"),
                     "email": m.get("email"),
                     "name": m.get("name"),
                     "role": m.get("role"),
-                    "added_at": m.get("added_at"),
+                    "added_at": m.get("created_time"),
                     "status": "joined"
                 })
             
