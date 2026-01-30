@@ -4,12 +4,13 @@
 """
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime
-from sqlalchemy import select
+from datetime import datetime, timedelta
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Team, RedemptionCode, RedemptionRecord
 from app.services.redemption import RedemptionService
+from app.services.warranty import WarrantyService
 from app.services.team import TeamService
 from app.services.chatgpt import ChatGPTService
 from app.services.encryption import encryption_service
@@ -25,6 +26,7 @@ class RedeemFlowService:
         """初始化兑换流程服务"""
         from app.services.chatgpt import chatgpt_service
         self.redemption_service = RedemptionService()
+        self.warranty_service = WarrantyService()
         self.team_service = TeamService()
         self.chatgpt_service = chatgpt_service
 
@@ -195,12 +197,36 @@ class RedeemFlowService:
                 result = await db_session.execute(stmt)
                 redemption_code = result.scalar_one_or_none()
                 
-                if not redemption_code or redemption_code.status != "unused":
-                    return {"success": False, "error": "兑换码已被占用或失效"}
+                if not redemption_code:
+                    return {"success": False, "error": "兑换码不存在"}
+                
+                # 特殊处理质保码
+                is_warranty_code = redemption_code.has_warranty
+                is_first_use = redemption_code.status == "unused"
+                
+                if not is_first_use:
+                    # 如果不是首次使用，检查是否为质保码且可重复使用
+                    if is_warranty_code:
+                        # 验证质保码是否可重复使用
+                        warranty_check = await self.warranty_service.validate_warranty_reuse(
+                            db_session, code, email
+                        )
+                        if not warranty_check["success"] or not warranty_check["can_reuse"]:
+                            return {"success": False, "error": warranty_check.get("reason", "兑换码已被使用")}
+                    else:
+                        return {"success": False, "error": "兑换码已被占用或失效"}
 
-                # 先标记为 used，记录必要信息
-                old_status = redemption_code.status
-                redemption_code.status = "used"
+                # 更新兑换码状态
+                if is_warranty_code:
+                    # 质保码使用特殊状态
+                    redemption_code.status = "warranty_active"
+                    # 首次使用时设置质保到期时间
+                    if is_first_use:
+                        redemption_code.warranty_expires_at = get_now() + timedelta(days=30)
+                else:
+                    # 普通码标记为已使用
+                    redemption_code.status = "used"
+                
                 redemption_code.used_by_email = email
                 redemption_code.used_team_id = team_id_final
                 redemption_code.used_at = get_now()
@@ -215,6 +241,7 @@ class RedeemFlowService:
                 final_team_name = team.team_name
                 final_team_expires_at = team.expires_at
                 final_access_token_encrypted = team.access_token_encrypted
+                final_is_warranty = is_warranty_code
                 
                 # 事务会自动 commit
             
@@ -244,7 +271,8 @@ class RedeemFlowService:
                         email=email,
                         code=code,
                         team_id=team_id_final,
-                        account_id=final_team_account_id
+                        account_id=final_team_account_id,
+                        is_warranty_redemption=final_is_warranty
                     )
                     db_session.add(redemption_record)
                 
@@ -296,7 +324,28 @@ class RedeemFlowService:
                 result = await db_session.execute(stmt)
                 redemption_code = result.scalar_one_or_none()
                 if redemption_code:
-                    redemption_code.status = "unused"
+                    # 质保码回退到 warranty_active 或 unused
+                    if redemption_code.has_warranty:
+                        # 检查是否有其他成功的兑换记录
+                        stmt = select(RedemptionRecord).where(
+                            and_(
+                                RedemptionRecord.code == code,
+                                RedemptionRecord.team_id != team_id
+                            )
+                        )
+                        result = await db_session.execute(stmt)
+                        other_records = result.scalars().first()
+                        if other_records:
+                            # 有其他记录，保持 warranty_active
+                            redemption_code.status = "warranty_active"
+                        else:
+                            # 没有其他记录，回退到 unused
+                            redemption_code.status = "unused"
+                            redemption_code.warranty_expires_at = None
+                    else:
+                        # 普通码回退到 unused
+                        redemption_code.status = "unused"
+                    
                     redemption_code.used_by_email = None
                     redemption_code.used_team_id = None
                     redemption_code.used_at = None

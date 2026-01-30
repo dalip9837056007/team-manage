@@ -64,12 +64,14 @@ class RedemptionCode(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(32), unique=True, nullable=False, comment="兑换码")
-    status = Column(String(20), default="unused", comment="状态: unused/used/expired")
+    status = Column(String(20), default="unused", comment="状态: unused/used/expired/warranty_active")
     created_at = Column(DateTime, default=get_now, comment="创建时间")
     expires_at = Column(DateTime, comment="过期时间")
     used_by_email = Column(String(255), comment="使用者邮箱")
     used_team_id = Column(Integer, ForeignKey("teams.id"), comment="使用的 Team ID")
     used_at = Column(DateTime, comment="使用时间")
+    has_warranty = Column(Boolean, default=False, comment="是否为质保兑换码")
+    warranty_expires_at = Column(DateTime, comment="质保到期时间(首次使用后一个月)")
 
     # 关系
     redemption_records = relationship("RedemptionRecord", back_populates="redemption_code")
@@ -90,6 +92,7 @@ class RedemptionRecord(Base):
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, comment="Team ID")
     account_id = Column(String(100), nullable=False, comment="Account ID")
     redeemed_at = Column(DateTime, default=get_now, comment="兑换时间")
+    is_warranty_redemption = Column(Boolean, default=False, comment="是否为质保兑换")
 
     # 关系
     team = relationship("Team", back_populates="redemption_records")

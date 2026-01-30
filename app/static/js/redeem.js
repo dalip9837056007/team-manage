@@ -52,6 +52,9 @@ function showStep(stepNumber) {
 function backToStep1() {
     showStep(1);
     selectedTeamId = null;
+    // 隐藏质保结果
+    document.getElementById('warrantyResult').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
 }
 
 // 步骤1: 验证兑换码并直接兑换
@@ -256,4 +259,142 @@ function formatDate(dateString) {
     } catch (e) {
         return dateString;
     }
+}
+
+// ========== 质保查询功能 ==========
+
+// 查询质保状态
+async function checkWarranty() {
+    const email = document.getElementById('email').value.trim();
+    const code = document.getElementById('code').value.trim();
+
+    // 至少需要提供一个
+    if (!email && !code) {
+        showToast('请至少填写邮箱或兑换码', 'error');
+        return;
+    }
+
+    const checkBtn = document.getElementById('checkWarrantyBtn');
+    checkBtn.disabled = true;
+    checkBtn.innerHTML = '<i data-lucide="loader" class="spinning"></i> 查询中...';
+    if (window.lucide) lucide.createIcons();
+
+    try {
+        const response = await fetch('/warranty/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email || null,
+                code: code || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showWarrantyResult(data);
+        } else {
+            showToast(data.error || data.detail || '查询失败', 'error');
+        }
+    } catch (error) {
+        showToast('网络错误，请稍后重试', 'error');
+    } finally {
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = '<i data-lucide="search"></i> 查询质保状态';
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+// 显示质保查询结果
+function showWarrantyResult(data) {
+    const warrantyContent = document.getElementById('warrantyContent');
+
+    if (!data.has_warranty) {
+        warrantyContent.innerHTML = `
+            <div class="result-info" style="text-align: center; padding: 2rem;">
+                <div class="result-icon"><i data-lucide="info" style="width: 48px; height: 48px; color: var(--text-muted);"></i></div>
+                <div class="result-title" style="font-size: 1.2rem; margin: 1rem 0;">未找到质保信息</div>
+                <div class="result-message" style="color: var(--text-muted);">${escapeHtml(data.message || '该兑换码不是质保兑换码或未找到相关记录')}</div>
+            </div>
+        `;
+    } else {
+        const warrantyStatus = data.warranty_valid ?
+            '<span style="color: var(--success);">✓ 质保有效</span>' :
+            '<span style="color: var(--danger);">✗ 质保已过期</span>';
+
+        const bannedTeamsHtml = data.banned_teams && data.banned_teams.length > 0 ? `
+            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <h4 style="margin: 0 0 0.5rem 0; color: var(--danger); font-size: 0.95rem;">
+                    <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i> 
+                    被封 Team 列表
+                </h4>
+                ${data.banned_teams.map(team => `
+                    <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-weight: 500;">${escapeHtml(team.team_name || 'Team ' + team.team_id)}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">${escapeHtml(team.email)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '<p style="color: var(--text-muted); margin-top: 1rem;">暂无被封 Team</p>';
+
+        const canReuseHtml = data.can_reuse ? `
+            <div style="margin-top: 1.5rem; padding: 1.5rem; background: rgba(34, 197, 94, 0.1); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <h4 style="margin: 0 0 1rem 0; color: var(--success); font-size: 1rem;">
+                    <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> 
+                    可以重复使用
+                </h4>
+                <p style="margin: 0 0 1rem 0; color: var(--text-secondary);">
+                    您的质保兑换码可以重复使用！请复制下方兑换码，返回兑换页面重新兑换。
+                </p>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" value="${escapeHtml(data.original_code)}" readonly 
+                        style="flex: 1; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-base); border-radius: 6px; color: var(--text-primary); font-family: monospace; font-size: 1.1rem;">
+                    <button onclick="copyWarrantyCode('${escapeHtml(data.original_code)}')" class="btn btn-primary" style="white-space: nowrap;">
+                        <i data-lucide="copy"></i> 复制
+                    </button>
+                </div>
+            </div>
+        ` : '';
+
+        warrantyContent.innerHTML = `
+            <div class="warranty-details">
+                <div class="result-detail-item" style="padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 1rem;">
+                    <span class="result-detail-label">质保状态</span>
+                    <span class="result-detail-value">${warrantyStatus}</span>
+                </div>
+                
+                ${data.warranty_expires_at ? `
+                <div class="result-detail-item" style="padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 1rem;">
+                    <span class="result-detail-label">质保到期时间</span>
+                    <span class="result-detail-value">${formatDate(data.warranty_expires_at)}</span>
+                </div>
+                ` : ''}
+                
+                <div class="result-detail-item" style="padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 1rem;">
+                    <span class="result-detail-label">原兑换码</span>
+                    <span class="result-detail-value" style="font-family: monospace;">${escapeHtml(data.original_code)}</span>
+                </div>
+                
+                ${bannedTeamsHtml}
+                ${canReuseHtml}
+            </div>
+        `;
+    }
+
+    if (window.lucide) lucide.createIcons();
+
+    // 显示质保结果区域
+    document.querySelectorAll('.step').forEach(step => step.style.display = 'none');
+    document.getElementById('warrantyResult').style.display = 'block';
+}
+
+// 复制质保兑换码
+function copyWarrantyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        showToast('兑换码已复制到剪贴板', 'success');
+    }).catch(() => {
+        showToast('复制失败，请手动复制', 'error');
+    });
 }

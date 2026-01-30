@@ -51,7 +51,8 @@ class RedemptionService:
         self,
         db_session: AsyncSession,
         code: Optional[str] = None,
-        expires_days: Optional[int] = None
+        expires_days: Optional[int] = None,
+        has_warranty: bool = False
     ) -> Dict[str, Any]:
         """
         生成单个兑换码
@@ -60,6 +61,7 @@ class RedemptionService:
             db_session: 数据库会话
             code: 自定义兑换码 (可选,如果不提供则自动生成)
             expires_days: 有效期天数 (可选,如果不提供则永久有效)
+            has_warranty: 是否为质保兑换码 (默认 False)
 
         Returns:
             结果字典,包含 success, code, message, error
@@ -109,7 +111,8 @@ class RedemptionService:
             redemption_code = RedemptionCode(
                 code=code,
                 status="unused",
-                expires_at=expires_at
+                expires_at=expires_at,
+                has_warranty=has_warranty
             )
 
             db_session.add(redemption_code)
@@ -138,7 +141,8 @@ class RedemptionService:
         self,
         db_session: AsyncSession,
         count: int,
-        expires_days: Optional[int] = None
+        expires_days: Optional[int] = None,
+        has_warranty: bool = False
     ) -> Dict[str, Any]:
         """
         批量生成兑换码
@@ -147,6 +151,7 @@ class RedemptionService:
             db_session: 数据库会话
             count: 生成数量
             expires_days: 有效期天数 (可选)
+            has_warranty: 是否为质保兑换码 (默认 False)
 
         Returns:
             结果字典,包含 success, codes, total, message, error
@@ -192,7 +197,8 @@ class RedemptionService:
                 redemption_code = RedemptionCode(
                     code=code,
                     status="unused",
-                    expires_at=expires_at
+                    expires_at=expires_at,
+                    has_warranty=has_warranty
                 )
                 db_session.add(redemption_code)
 
@@ -440,7 +446,9 @@ class RedemptionService:
                     "expires_at": code.expires_at.isoformat() if code.expires_at else None,
                     "used_by_email": code.used_by_email,
                     "used_team_id": code.used_team_id,
-                    "used_at": code.used_at.isoformat() if code.used_at else None
+                    "used_at": code.used_at.isoformat() if code.used_at else None,
+                    "has_warranty": code.has_warranty,
+                    "warranty_expires_at": code.warranty_expires_at.isoformat() if code.warranty_expires_at else None
                 })
 
             logger.info(f"获取所有兑换码成功: 第 {page} 页, 共 {len(code_list)} 个 / 总数 {total}")

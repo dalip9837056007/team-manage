@@ -328,8 +328,9 @@ async function generateSingle(event) {
     const form = event.target;
     const customCode = form.customCode.value.trim();
     const expiresDays = form.expiresDays.value;
+    const hasWarranty = form.hasWarranty.checked;
 
-    const data = { type: 'single' };
+    const data = { type: 'single', has_warranty: hasWarranty };
     if (customCode) data.code = customCode;
     if (expiresDays) data.expires_days = parseInt(expiresDays);
 
@@ -357,13 +358,14 @@ async function generateBatch(event) {
     const form = event.target;
     const count = parseInt(form.count.value);
     const expiresDays = form.expiresDays.value;
+    const hasWarranty = form.hasWarranty.checked;
 
     if (count < 1 || count > 1000) {
         showToast('生成数量必须在1-1000之间', 'error');
         return;
     }
 
-    const data = { type: 'batch', count: count };
+    const data = { type: 'batch', count: count, has_warranty: hasWarranty };
     if (expiresDays) data.expires_days = parseInt(expiresDays);
 
     const result = await apiCall('/admin/codes/generate', {
