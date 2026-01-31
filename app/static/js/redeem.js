@@ -414,20 +414,24 @@ function showWarrantyResult(data) {
                                 <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 1rem; font-size: 0.9rem;">
                                     <div>
                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">加入 Team</div>
-                                        <div style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                            <span>${escapeHtml(record.team_name || '未知 Team')}</span>
-                                            <span>${teamStatusBadge}</span>
-                                            ${(record.has_warranty && record.warranty_valid && record.team_status === 'banned') ? `
-                                            <button onclick="oneClickReplace('${escapeHtml(record.code)}', '${escapeHtml(record.email || currentEmail)}')" class="btn btn-xs btn-primary" style="padding: 2px 8px; font-size: 0.75rem; height: auto; min-height: 0;">
-                                                一键换车
-                                            </button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div style="color: var(--text-muted); margin-bottom: 0.2rem;">兑换时间</div>
-                                        <div>${formatDate(record.used_at)}</div>
-                                    </div>
+                                         <div style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                             <span>${escapeHtml(record.team_name || '未知 Team')}</span>
+                                             <span>${teamStatusBadge}</span>
+                                             ${(record.has_warranty && record.warranty_valid && record.team_status === 'banned') ? `
+                                             <button onclick="oneClickReplace('${escapeHtml(record.code)}', '${escapeHtml(record.email || currentEmail)}')" class="btn btn-xs btn-primary" style="padding: 2px 8px; font-size: 0.75rem; height: auto; min-height: 0;">
+                                                 一键换车
+                                             </button>
+                                             ` : ''}
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">兑换时间</div>
+                                         <div>${formatDate(record.used_at)}</div>
+                                     </div>
+                                     <div style="grid-column: span 2;">
+                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">Team 到期</div>
+                                         <div style="font-weight: 500;">${formatDate(record.team_expires_at)}</div>
+                                     </div>
                                     ${record.has_warranty ? `
                                     <div style="grid-column: span 2;">
                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">质保到期</div>

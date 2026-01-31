@@ -119,6 +119,7 @@ class WarrantyService:
                             "team_id": None,
                             "team_name": None,
                             "team_status": None,
+                            "team_expires_at": None,
                             "warranty_expires_at": redemption_code_obj.warranty_expires_at.isoformat() if redemption_code_obj.warranty_expires_at else None
                         }],
                         "message": "兑换码尚未被使用"
@@ -207,6 +208,7 @@ class WarrantyService:
                     "team_id": team.id,
                     "team_name": team.team_name,
                     "team_status": team.status,
+                    "team_expires_at": team.expires_at.isoformat() if team.expires_at else None,
                     "email": record.email
                 })
 

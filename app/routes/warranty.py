@@ -33,6 +33,7 @@ class WarrantyCheckRecord(BaseModel):
     team_id: Optional[int]
     team_name: Optional[str]
     team_status: Optional[str]
+    team_expires_at: Optional[str]
     email: Optional[str] = None
 
 
