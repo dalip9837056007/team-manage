@@ -134,7 +134,17 @@ class WarrantyService:
                     .order_by(RedemptionRecord.redeemed_at.desc())
                 )
                 result = await db_session.execute(stmt)
-                records_data = result.all()
+                all_records = result.all()
+
+                # 只保留每个兑换码的最近一条记录
+                seen_codes = set()
+                records_data = []
+                for row in all_records:
+                    # row format: (RedemptionRecord, RedemptionCode, Team)
+                    record_obj = row[0]
+                    if record_obj.code not in seen_codes:
+                        seen_codes.add(record_obj.code)
+                        records_data.append(row)
 
             if not records_data:
                 return {
