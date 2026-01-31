@@ -37,19 +37,27 @@ class TeamService:
             bool: 是否已处理致命错误
         """
         error_code = result.get("error_code")
+        error_msg = str(result.get("error", "")).lower()
         
         # 处理账号封禁/失效
         # OpenAI 返回 account_deactivated 表示账号被封禁
         # OpenAI 返回 token_invalidated 表示 Access Token 被吊销，通常也意味着 Team 被封或失效
-        if error_code in ["account_deactivated", "token_invalidated"]:
-            status_desc = "封禁 (account_deactivated)" if error_code == "account_deactivated" else "失效 (token_invalidated)"
-            logger.warning(f"检测到账号{status_desc},更新 Team {team.id} ({team.email}) 状态为 banned")
+        is_banned = error_code in ["account_deactivated", "token_invalidated"]
+        
+        # 备选方案：检查错误消息文本（以防 error_code 提取失败）
+        if not is_banned:
+            if "token has been invalidated" in error_msg or "account_deactivated" in error_msg:
+                is_banned = True
+                
+        if is_banned:
+            status_desc = "封禁" if "deactivated" in error_msg or error_code == "account_deactivated" else "失效"
+            logger.warning(f"检测到账号{status_desc} (code={error_code}), 更新 Team {team.id} ({team.email}) 状态为 banned")
             team.status = "banned"
             await db_session.commit()
             return True
             
         # 处理刷新失败 (仅针对刷新场景)
-        if error_code == "invalid_grant":
+        if error_code == "invalid_grant" or "invalid_grant" in error_msg:
             logger.warning(f"检测到刷新 Token 失败 (invalid_grant),更新 Team {team.id} ({team.email}) 状态为 error")
             team.status = "error"
             await db_session.commit()
@@ -603,6 +611,12 @@ class TeamService:
             # 2. 确保 AT Token 有效
             access_token = await self.ensure_access_token(team, db_session)
             if not access_token:
+                if team.status == "banned":
+                    return {
+                        "success": False,
+                        "message": None,
+                        "error": "Team 账号已封禁/失效 (token_invalidated)"
+                    }
                 return {
                     "success": False,
                     "message": None,

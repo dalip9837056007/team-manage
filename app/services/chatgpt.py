@@ -296,7 +296,8 @@ class ChatGPTService:
                     "success": False,
                     "members": [],
                     "total": 0,
-                    "error": result["error"]
+                    "error": result["error"],
+                    "error_code": result.get("error_code")
                 }
 
             # 解析响应
@@ -354,7 +355,8 @@ class ChatGPTService:
                 "success": False,
                 "items": [],
                 "total": 0,
-                "error": result["error"]
+                "error": result["error"],
+                "error_code": result.get("error_code")
             }
 
         data = result["data"]
@@ -474,7 +476,8 @@ class ChatGPTService:
             return {
                 "success": False,
                 "accounts": [],
-                "error": result["error"]
+                "error": result["error"],
+                "error_code": result.get("error_code")
             }
 
         # 解析响应
