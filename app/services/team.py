@@ -456,6 +456,9 @@ class TeamService:
             team_id: Team ID
             db_session: 数据库会话
             access_token: 新的 AT Token (可选)
+            refresh_token: 新的 RT Token (可选)
+            session_token: 新的 ST Token (可选)
+            client_id: 新的 Client ID (可选)
             email: 新的邮箱 (可选)
             account_id: 新的 Account ID (可选)
             max_members: 最大成员数 (可选)
@@ -466,13 +469,33 @@ class TeamService:
             结果字典
         """
         try:
-            stmt = select(Team).where(Team.id == team_id)
+            # 1. 查询 Team (包含关联的 team_accounts)
+            stmt = select(Team).where(Team.id == team_id).options(
+                selectinload(Team.team_accounts)
+            )
             result = await db_session.execute(stmt)
             team = result.scalar_one_or_none()
 
             if not team:
                 return {"success": False, "error": f"Team ID {team_id} 不存在"}
 
+            # 2. 更新属性
+            if email:
+                team.email = email
+            
+            if team_name is not None:
+                team.team_name = team_name
+
+            if account_id:
+                team.account_id = account_id
+                # 更新关联账户的主次状态
+                for acc in team.team_accounts:
+                    if acc.account_id == account_id:
+                        acc.is_primary = True
+                    else:
+                        acc.is_primary = False
+
+            # 3. 更新 Token
             if access_token:
                 team.access_token_encrypted = encryption_service.encrypt_token(access_token)
             if refresh_token:
@@ -481,18 +504,16 @@ class TeamService:
                 team.session_token_encrypted = encryption_service.encrypt_token(session_token)
             if client_id:
                 team.client_id = client_id
-            if email:
-                team.email = email
-            if account_id:
-                team.account_id = account_id
+
+            # 4. 更新最大成员数
             if max_members is not None:
                 team.max_members = max_members
-            if team_name is not None:
-                team.team_name = team_name
+
+            # 5. 更新状态
             if status:
                 team.status = status
-
-            # 自动维护 active/full 状态 (仅当当前处于这两者之一时)
+            
+            # 自动维护 active/full 状态 (仅当当前处于这两者之一或刚更新了 max_members/status)
             if team.status in ["active", "full"]:
                 if team.current_members >= team.max_members:
                     team.status = "full"
@@ -500,6 +521,11 @@ class TeamService:
                     team.status = "active"
 
             await db_session.commit()
+
+            # 6. 如果更新了 AT 或 account_id，触发一次同步以确保状态正确
+            if access_token or account_id:
+                await self.sync_team_info(team_id, db_session)
+
             logger.info(f"Team {team_id} 信息更新成功")
             return {"success": True, "message": "Team 信息更新成功"}
 
@@ -1620,109 +1646,6 @@ class TeamService:
                 "success": False,
                 "teams": [],
                 "error": f"获取所有 Team 列表失败: {str(e)}"
-            }
-
-    async def update_team(
-        self,
-        team_id: int,
-        db_session: AsyncSession,
-        email: Optional[str] = None,
-        account_id: Optional[str] = None,
-        access_token: Optional[str] = None,
-        refresh_token: Optional[str] = None,
-        session_token: Optional[str] = None,
-        client_id: Optional[str] = None,
-        max_members: Optional[int] = None,
-        status: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        更新 Team 信息
-
-        Args:
-            team_id: Team ID
-            db_session: 数据库会话
-            email: 新邮箱 (可选)
-            account_id: 新 account_id (可选,用于切换多 Team)
-
-        Returns:
-            结果字典,包含 success, message, error
-        """
-        try:
-            # 1. 查询 Team (包含关联的 team_accounts)
-            stmt = select(Team).where(Team.id == team_id).options(
-                selectinload(Team.team_accounts)
-            )
-            result = await db_session.execute(stmt)
-            team = result.scalar_one_or_none()
-
-            if not team:
-                return {
-                    "success": False,
-                    "message": None,
-                    "error": f"Team ID {team_id} 不存在"
-                }
-
-            # 2. 更新属性
-            if email:
-                team.email = email
-
-            if account_id:
-                team.account_id = account_id
-                # 更新关联账户的主次状态
-                for acc in team.team_accounts:
-                    if acc.account_id == account_id:
-                        acc.is_primary = True
-                    else:
-                        acc.is_primary = False
-
-            # 4. 更新 Access Token
-            if access_token:
-                try:
-                    from app.services.encryption import encryption_service
-                    team.access_token_encrypted = encryption_service.encrypt_token(access_token)
-                except Exception as e:
-                    logger.error(f"重新加密 Team {team_id} Token 失败: {e}")
-                    return {
-                        "success": False,
-                        "message": None,
-                        "error": f"加密 Token 失败: {str(e)}"
-                    }
-
-            # 5. 更新最大成员数
-            if max_members is not None:
-                team.max_members = max_members
-                # 更新状态
-                if team.current_members >= max_members:
-                    if team.status == "active":
-                        team.status = "full"
-                elif team.status == "full":
-                    team.status = "active"
-
-            # 6. 更新状态 (手动覆盖)
-            if status:
-                team.status = status
-
-            await db_session.commit()
-
-            # 6. 如果更新了 AT 或 account_id，触发一次同步以确保状态正确
-            if access_token or account_id:
-                await self.sync_team_info(team_id, db_session)
-
-            logger.info(f"更新 Team {team_id} 成功")
-
-            return {
-                "success": True,
-                "message": "Team 信息已更新",
-                "error": None
-            }
-
-        except Exception as e:
-            await db_session.rollback()
-            logger.error(f"更新 Team 失败: {e}")
-            return {
-                "success": False,
-                "message": None,
-                "error": f"更新 Team 失败: {str(e)}"
             }
 
     async def delete_team(
